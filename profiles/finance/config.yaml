@@ -1,0 +1,5 @@
+# Finance profile — inherits from default config.
+agent:
+  reasoning_effort: high
+terminal:
+  timeout: 300

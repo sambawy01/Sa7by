@@ -1,0 +1,5 @@
+# Manufacturing profile — inherits from default config.
+agent:
+  reasoning_effort: medium
+terminal:
+  timeout: 300
