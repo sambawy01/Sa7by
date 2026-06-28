@@ -35,6 +35,10 @@ COPY skills/ /hermes/docker/railway-state/skills/
 # Plugin must be at plugins/supabase/ (not plugins/memory/supabase/) because
 # Hermes scans $HERMES_HOME/plugins/<name>/ for user-installed memory providers.
 COPY plugins/memory/supabase/__init__.py /hermes/docker/railway-state/plugins/supabase/__init__.py
+COPY scripts/heartbeat.py /hermes/docker/railway-state/scripts/heartbeat.py
+COPY scripts/error-monitor.py /hermes/docker/railway-state/scripts/error-monitor.py
+COPY scripts/setup-cron-jobs.py /hermes/docker/railway-state/scripts/setup-cron-jobs.py
+COPY scripts/backup.py /hermes/docker/railway-state/scripts/backup.py
 COPY railway/railway-init.sh /hermes/railway-init.sh
 # Apply Railway-specific config override: home_mode must be "real" so
 # subprocess HOME=/opt/data (external CLIs find their credentials).
@@ -151,6 +155,11 @@ RUN mkdir -p /opt/data
 
 # Railway: seed user state + boot init
 COPY --from=source --chown=hermes:hermes /hermes/docker/railway-state/ /opt/data/
+COPY --from=source --chown=hermes:hermes /hermes/docker/railway-state/ /opt/railway-seed/
+COPY railway/seed-volume.sh /opt/hermes/seed-volume.sh
+RUN chmod 0755 /opt/hermes/seed-volume.sh && \
+    printf '#!/command/with-contenv sh\nexec /opt/hermes/seed-volume.sh\n' > /etc/cont-init.d/00-railway-seed && \
+    chmod +x /etc/cont-init.d/00-railway-seed
 COPY --from=source --chmod=0755 /hermes/railway-init.sh /opt/hermes/railway-init.sh
 RUN printf '#!/command/with-contenv sh\nexec /opt/hermes/railway-init.sh\n' > /etc/cont-init.d/03-railway-init && chmod +x /etc/cont-init.d/03-railway-init
 
