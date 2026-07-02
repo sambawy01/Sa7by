@@ -54,6 +54,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Free disk space
+        run: |
+          # Reclaim ~7GB by removing pre-installed SDKs, languages, and Docker
+          # images that the runner ships with but this build doesn't need.
+          sudo rm -rf /usr/local/lib/android /usr/local/lib/node_modules \
+                      /usr/local/share/chromium /usr/local/share/vcpkg \
+                      /opt/ghc /opt/hostedtoolcache/CodeQL \
+                      /usr/share/dotnet /usr/local/.ghcup \
+                      2>/dev/null || true
+          docker system prune -af --volumes 2>/dev/null || true
+          sudo apt-get purge -y --auto-remove \
+            google-chrome-stable microsoft-edge-stable firefox \
+            2>/dev/null || true
+          df -h /
       - uses: docker/setup-buildx-action@v3
       - name: Build Railway image
         uses: docker/build-push-action@v6
@@ -62,8 +76,9 @@ jobs:
           file: Dockerfile.railway
           load: true
           tags: hermes-pa:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # No GHA cache — cache blobs consume 2-3GB and push the runner over
+          # the disk limit during export. The build is fast enough without it
+          # because the base images are already pulled by setup-buildx-action.
       - name: Seed-volume smoke test (simulates a fresh empty Railway volume)
         run: |
           set -euo pipefail
@@ -106,7 +121,7 @@ jobs:
             test -d /opt/data/profiles                          || { echo "profiles/ NOT restored"; exit 1; }
             test -f /opt/data/plugins/supabase/__init__.py      || { echo "supabase memory plugin NOT restored"; exit 1; }
             test -f /opt/data/scripts/setup-cron-jobs.py        || { echo "cron setup script NOT restored"; exit 1; }
-            test -f /opt/data/runtime-state.txt                 || { echo "runtime state lost during restore"; exit 1; }
+            test -f /opt/data/runtime-state.txt                || { echo "runtime state lost during restore"; exit 1; }
           '
           echo "::endgroup::"
 
